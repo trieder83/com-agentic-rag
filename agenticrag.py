@@ -80,13 +80,22 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 
 # Load the Mistral-3B model and tokenizer from the local directory
-model_path = "./model/mistral-3b/models--qualcomm--Mistral-3B"  # Replace with your local directory path
+#model_path = "./model/mistral-3b/models--qualcomm--Mistral-3B"  # Replace with your local directory path
+model_path = "./model/llama-3.2-1Blocal"  # Replace with your local directory path
+#model_name = "meta-llama/Llama-3.2-1B"
+#model_name = "meta-llama/Llama-3.2-1B-Instruct-SpinQuant_INT4_EO8"
+model_name = "model/llama-3.2-1B"
+local_dir = "model/llama-3.2-1B"
 
-tokenizer = AutoTokenizer.from_pretrained(model_path)
-model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16)
+#tokenizer = AutoTokenizer.from_pretrained(model_path,cache_dir=local_dir)
+#model = AutoModelForCausalLM.from_pretrained(model_path,cache_dir=local_dir)
+# model path need ./ at the beginning / local_files_only=True
+tokenizer = AutoTokenizer.from_pretrained(model_name,token="hf_")
+model = AutoModelForCausalLM.from_pretrained(model_name,token="hf_")
 
 # Move model to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"run on {device}")
 model = model.to(device)
 
 # Prepare context data and the prompt
@@ -97,7 +106,6 @@ movie_name = "food"
 context_str = "\n".join(context)
 final_prompt = f"\n{prompt_str.format(movie_name=movie_name)}"
 
-# Combine the response from the index with the context and final prompt
 final_input = f"{context_str}\n{final_prompt}"
 
 inputs = tokenizer(final_input, return_tensors="pt").to(device)

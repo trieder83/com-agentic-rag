@@ -33,6 +33,7 @@ COPY requirements.txt .
 #RUN conda install pytorch torchvision cudatoolkit=10.0 -c pytorch && \
 #RUN pip install torch --index-url https://download.pytorch.org/whl/cpu && \
 RUN pip install --no-cache-dir -r requirements.txt 
+
 #&& \
 #  python3 -c 'from sentence_transformers import SentenceTransformer; SentenceTransformer("all-MiniLM-L6-v2", cache_folder="./app/artefacts")'
 #RUN python3 ./createEmbeddings2.py
@@ -40,9 +41,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 #    huggingface-cli login --token xxx && \
 #COPY --exclude=data* --exclude=model agenticrag.py .
 #COPY --exclude=data* --exclude=model . .
-COPY agenticrag.py .
 
-#CMD [ "python", "./createEmbeddings2.py" ]
+RUN [ "python3", "-c", "import nltk; nltk.download('punkt', download_dir='/usr/local/nltk_data')" ]
+
+ENV HF_HOME="/cache"
+COPY agenticrag.py test.py .
+
+CMD [ "python", "./test.py" ]
 #CMD [ flask, --app, createEmbeddings2, "run"]
-CMD [ flask, --app, agenticrag.py, "run"]
+#CMD [ flask, --app, agenticrag.py, "run"]
 #CMD [ ./"bootstrap.sh"]
