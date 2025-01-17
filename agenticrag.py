@@ -1,8 +1,12 @@
 import chromadb
 from chromadb.utils import embedding_functions
 import argparse, sys
+from dotenv import load_dotenv
+load_dotenv()
 
+hf_token=os.getenv("HF_TOKEN")
 parser=argparse.ArgumentParser()
+
 
 parser.add_argument("--rmindex", help="delete chromdb")
 parser.add_argument("--query", help="query")
@@ -90,8 +94,8 @@ local_dir = "model/llama-3.2-1B"
 #tokenizer = AutoTokenizer.from_pretrained(model_path,cache_dir=local_dir)
 #model = AutoModelForCausalLM.from_pretrained(model_path,cache_dir=local_dir)
 # model path need ./ at the beginning / local_files_only=True
-tokenizer = AutoTokenizer.from_pretrained(model_name,token="hf_")
-model = AutoModelForCausalLM.from_pretrained(model_name,token="hf_")
+tokenizer = AutoTokenizer.from_pretrained(model_name,token=hf_token)
+model = AutoModelForCausalLM.from_pretrained(model_name,token=hf_token)
 
 # Move model to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

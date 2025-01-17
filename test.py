@@ -1,6 +1,8 @@
 from transformers import AutoTokenizer
+from dotenv import load_dotenv
+load_dotenv()
 
-hf_token="hf_"
+hf_token=os.getenv("HF_TOKEN")
 
 tokenizer = AutoTokenizer.from_pretrained(
     "meta-llama/Meta-Llama-3-8B-Instruct",
