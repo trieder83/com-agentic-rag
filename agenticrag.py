@@ -1,6 +1,6 @@
 import chromadb
 from chromadb.utils import embedding_functions
-import argparse, sys
+import argparse, sys, os
 from dotenv import load_dotenv
 load_dotenv()
 
