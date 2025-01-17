@@ -13,3 +13,4 @@ typing
 nest_asyncio
 docx2txt
 pypdf
+dotenv
