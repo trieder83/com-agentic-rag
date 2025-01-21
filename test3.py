@@ -93,13 +93,13 @@ prompt = "Wer war Anna Gölding und welche andren personen oder organisationen s
 response = agent.query(prompt)
 #response = llm.complete(prompt)
 
-memory.put(response)
+#memory.put(response)
 
 print(response)
 print("----------------------------------")
 
 prompt = "tell me more about the organzations?"
-response = agent.query(prompt)
+response = agent.query(prompt )
 
 print(response)
 #while (prompt := input("Enter a prompt (q to quit): ")) != "q":
