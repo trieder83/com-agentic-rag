@@ -4,8 +4,10 @@ from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
 
+from llama_index.core.memory import ChatMemoryBuffer
+
 # other file prompts.py
-from prompts import context, code_parser_template
+from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -17,8 +19,8 @@ from llama_index.llms.ollama import Ollama
 llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480')
 
 
-response = llm.complete("What is 20+(2*4)? Calculate step by step.")
-print(f"response: {response}")
+#response = llm.complete("What is 20+(2*4)? Calculate step by step.")
+#print(f"response: {response}")
 
 
 # generate_kwargs parameters are taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
@@ -31,31 +33,77 @@ def find_person(name: str):
     """
     # Mock response; replace with real query logic
     person_data = {
-        "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland."},
+            "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland.","id":"1234","relations":{"knows other person":"ron paul","organzation":"pilz mafia"}},
         "john doe": {"birthdate": "Unknown", "known_for": "Placeholder name for anonymous individuals."},
+        "ron paul": {"birthdate": "May 1, 1928", "known_for": "Talking a lot."},
     }
     return person_data.get(name.lower(), "No information available for this person.")
-
-
 
 find_person_tool = FunctionTool.from_defaults(
     fn=find_person,
     name="find_person",
-    #description= """provides information about known persons. including ther detail information like birthdate"""
 )
+
+def find_organization(name: str):
+    """
+    provides information about known official and inofficial organzations.
+
+    args:
+        name
+    """
+    # Mock response; replace with real query logic
+    org_data  = {
+        "un": {"name": "United Nations", "description": "The Security Council has primary responsibility for the maintenance of international peace and security.","id":"200","relations":{""}},
+        "pilz mafia": {"name": "Pilz Mafia", "description": "","id":"201","members":{"anna gölding","ron paul"}},
+        "acme company": {"name":"acme company","description":"placeholder company"},
+    }
+    return org_data.get(name.lower(), "No information available for this person.")
+
+find_orgnization_tool = FunctionTool.from_defaults(
+    fn=find_organization,
+    name="find_organization",
+)
+
+## TODO graph db
+
+
+## memory
+# Initialize the memory
+memory = ChatMemoryBuffer.from_defaults(chat_history=[], llm=llm)
+
+
 
 tools = [
     find_person_tool,
+    find_orgnization_tool,
 ]
 
-agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context)
+
+agent = ReActAgent.from_tools(tools, llm=llm, memory=memory, verbose=True, context=context, tool_choice='auto',max_iterations=15)
+
+#prompt_dict = agent.get_prompts()
+#for k, v in prompt_dict.items():
+#    print(f"Prompt: {k}\n\nValue: {v.template}")
+
+#agent.update_prompts({"agent_worker:system_prompt": FORMAT_INSTRUCTIONS_TEMPLATE})
 
 print("start prompt")
-prompt = "Who is Anna Gölding?"
+#prompt = "Who is Anna Gölding and what other person may be related to her? to which organzations may she be related?"
+prompt = "Wer war Anna Gölding und welche andren personen oder organisationen stehen mit ihr in verbindung?"
 response = agent.query(prompt)
 #response = llm.complete(prompt)
 
+memory.put(response)
+
 print(response)
+print("----------------------------------")
+
+prompt = "tell me more about the organzations?"
+response = agent.query(prompt)
+
+print(response)
+#while (prompt := input("Enter a prompt (q to quit): ")) != "q":
+#     result = agent.query(prompt)
 
 exit()
 
