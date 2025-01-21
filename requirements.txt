@@ -3,6 +3,7 @@ llama-index
 llama-agents 
 llama-index-vector-stores-chroma
 llama-index-readers-file
+llama-index-embeddings-huggingface
 chromadb
 huggingface_hub
 llama-index-llms-huggingface
@@ -13,4 +14,7 @@ typing
 nest_asyncio
 docx2txt
 pypdf
-dotenv
+python-dotenv
+torch 
+torchvision 
+torchaudio

@@ -1,59 +1,63 @@
 from transformers import AutoTokenizer, BitsAndBytesConfig
 import os
+from llama_index.core.agent import ReActAgent
+from llama_index.llms.openai import OpenAI
+from llama_index.core.tools import FunctionTool
+
+# other file prompts.py
+from prompts import context, code_parser_template
+
 from dotenv import load_dotenv
 load_dotenv()
 
 hf_token=os.getenv("HF_TOKEN")
 
-tokenizer = AutoTokenizer.from_pretrained(
-    "meta-llama/Meta-Llama-3-8B-Instruct",
-    token=hf_token,
-)
+from llama_index.llms.ollama import Ollama
+#llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
+llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480')
 
-stopping_ids = [
-    tokenizer.eos_token_id,
-    tokenizer.convert_tokens_to_ids("<|eot_id|>"),
-]
+
+response = llm.complete("What is 20+(2*4)? Calculate step by step.")
+print(f"response: {response}")
+
 
 # generate_kwargs parameters are taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+def find_person(name: str):
+    """
+    provides information about known persons. including ther detail information like birthdate
 
-import torch
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.llms.huggingface import HuggingFaceLLM
+    args:
+        name
+    """
+    # Mock response; replace with real query logic
+    person_data = {
+        "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland."},
+        "john doe": {"birthdate": "Unknown", "known_for": "Placeholder name for anonymous individuals."},
+    }
+    return person_data.get(name.lower(), "No information available for this person.")
 
-# Optional quantization to 4bit
-# import torch
-# from transformers import BitsAndBytesConfig
 
-quantization_config = BitsAndBytesConfig(
-     load_in_4bit=True,
-     bnb_4bit_compute_dtype=torch.float16,
-     bnb_4bit_quant_type="nf4",
-     bnb_4bit_use_double_quant=True,
- )
-llm = HuggingFaceLLM(
-    #model_name="meta-llama/Meta-Llama-3-8B-Instruct",
-    model_name="meta-llama/Llama-3.2-1B-Instruct",
-    model_kwargs={
-        "token": hf_token,
-        #"torch_dtype": torch.bfloat16,  # comment this line and uncomment below to use 4bit
-        "quantization_config": quantization_config
-    },
-    generate_kwargs={
-        "do_sample": True,
-        "temperature": 0.6,
-        "top_p": 0.9,
-    },
-    #tokenizer_name="meta-llama/Meta-Llama-3-8B-Instruct",
-    tokenizer_name="meta-llama/Llama-3.2-1B-Instruct",
-    tokenizer_kwargs={"token": hf_token},
-    stopping_ids=stopping_ids,
+
+find_person_tool = FunctionTool.from_defaults(
+    fn=find_person,
+    name="find_person",
+    #description= """provides information about known persons. including ther detail information like birthdate"""
 )
 
+tools = [
+    find_person_tool,
+]
+
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context)
+
 print("start prompt")
-response = llm.complete("Who is Paul Graham?")
+prompt = "Who is Anna Gölding?"
+response = agent.query(prompt)
+#response = llm.complete(prompt)
 
 print(response)
+
+exit()
 
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 
@@ -115,20 +119,10 @@ def divide(a: int, b: int) -> int:
     """Divides two integers and returns the result integer"""
     return a / b
 
-def findPerson(name: str):
-    """provides information about known persons. including ther detail information like birthdate"""
-    # Mock response; replace with real query logic
-    person_data = {
-        "anna göldin": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland."},
-        "john doe": {"birthdate": "Unknown", "known_for": "Placeholder name for anonymous individuals."},
-    }
-    return person_data.get(name.lower(), "No information available for this person.")
-
 multiply_tool = FunctionTool.from_defaults(fn=multiply)
 add_tool = FunctionTool.from_defaults(fn=add)
 subtract_tool = FunctionTool.from_defaults(fn=subtract)
 divide_tool = FunctionTool.from_defaults(fn=divide)
-findPerson_tool = FunctionTool.from_defaults(fn=findPerson)
 
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core import Settings
