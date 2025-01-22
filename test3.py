@@ -3,6 +3,10 @@ import os
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
+from llama_index.core.embeddings import resolve_embed_model
+from llama_index.core.tools import QueryEngineTool
+
 
 #from llama_index.core.memory import ChatMemoryBuffer
 from langchain.chains.conversation.memory import ConversationBufferMemory
@@ -26,6 +30,30 @@ llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://lo
 
 #response = llm.complete("What is 20+(2*4)? Calculate step by step.")
 #print(f"response: {response}")
+
+# RAG index
+print("read txt")
+#documents = SimpleDirectoryReader("data").load_data()
+documents = SimpleDirectoryReader(
+    input_files=["./data/testdata.txt","./data/additionalinfo.txt"]
+).load_data()
+
+# bge-m3 embedding model
+Settings.embed_model = resolve_embed_model("local:BAAI/bge-small-en-v1.5")
+# ollama
+Settings.llm = llm
+
+index = VectorStoreIndex.from_documents(
+    documents,
+)
+
+query_engine = index.as_query_engine(similarity_top_k=3)
+
+knowledge_tool = QueryEngineTool.from_defaults(
+    query_engine,
+    name="knowledge_tool",
+    description="A RAG engine with some basic facts persons. Ask natural-language questions about persons and their properties and relations."
+)
 
 
 # generate_kwargs parameters are taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
@@ -83,6 +111,7 @@ find_orgnization_tool = FunctionTool.from_defaults(
 tools = [
     find_person_tool,
     find_orgnization_tool,
+    knowledge_tool,
 ]
 
 
@@ -122,15 +151,9 @@ response = agent.query(prompt )
 
 print(response)
 
+
+
 exit()
-
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-
-print("read txt")
-documents = SimpleDirectoryReader(
-    input_files=["./data/testdata.txt"]
-).load_data()
-
 
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
@@ -144,12 +167,6 @@ from llama_index.core import Settings
 
 # Llama-3-8B-Instruct model
 Settings.llm = llm
-
-#index = VectorStoreIndex.from_documents(
-#    documents,
-#)
-
-#query_engine = index.as_query_engine(similarity_top_k=3)
 
 #response = query_engine.query("What did paul graham do growing up?")
 #print(response)
