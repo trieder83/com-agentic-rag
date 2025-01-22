@@ -29,7 +29,7 @@ llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://lo
 
 
 # generate_kwargs parameters are taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
-def find_person(name: str):
+def find_person(name: str, **kwargs):
     """
     provides information about known persons. including ther detail information like birthdate
 
@@ -38,7 +38,7 @@ def find_person(name: str):
     """
     # Mock response; replace with real query logic
     person_data = {
-            "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland.","id":"1234","relations":{"knows other person":"ron paul","organzation":"pilz mafia"}},
+            "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland.","object_id":"1234","relations":{"knows other person":"ron paul","organzation":"pilz mafia"}},
         "john doe": {"birthdate": "Unknown", "known_for": "Placeholder name for anonymous individuals."},
         "ron paul": {"birthdate": "May 1, 1928", "known_for": "Talking a lot."},
     }
@@ -62,7 +62,7 @@ def find_organization(name: str):
         "pilz mafia": {"name": "Pilz Mafia", "description": "","id":"201","members":{"anna gölding","ron paul"}},
         "acme company": {"name":"acme company","description":"placeholder company"},
     }
-    return org_data.get(name.lower(), "No information available for this person.")
+    return org_data.get(name.lower(), "No information available for this organization.")
 
 find_orgnization_tool = FunctionTool.from_defaults(
     fn=find_organization,
@@ -76,6 +76,8 @@ find_orgnization_tool = FunctionTool.from_defaults(
 # Initialize the memory
 #memory = ChatMemoryBuffer.from_defaults(chat_history=[], llm=llm)
 
+# rag
+# data/additionalinfo.txt
 
 
 tools = [
@@ -110,6 +112,15 @@ response = agent.query(prompt )
 print(response)
 #while (prompt := input("Enter a prompt (q to quit): ")) != "q":
 #     result = agent.query(prompt)
+
+memory.save_context({"input": prompt}, {"output": str(response)})
+
+print("----------------------------------")
+chat_history = memory.load_memory_variables({})["chat_history"]
+prompt = f"give me the url to the person Anna Gölding in the format the fromat xx:/object:entity_type/id:object_id, the entity_type can be: PERSON, ORGANZATION"
+response = agent.query(prompt )
+
+print(response)
 
 exit()
 
