@@ -4,7 +4,12 @@ from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
 
-from llama_index.core.memory import ChatMemoryBuffer
+#from llama_index.core.memory import ChatMemoryBuffer
+from langchain.chains.conversation.memory import ConversationBufferMemory
+
+# Initialize memory
+memory = ConversationBufferMemory(memory_key="chat_history")
+
 
 # other file prompts.py
 from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE
@@ -69,7 +74,7 @@ find_orgnization_tool = FunctionTool.from_defaults(
 
 ## memory
 # Initialize the memory
-memory = ChatMemoryBuffer.from_defaults(chat_history=[], llm=llm)
+#memory = ChatMemoryBuffer.from_defaults(chat_history=[], llm=llm)
 
 
 
@@ -79,7 +84,7 @@ tools = [
 ]
 
 
-agent = ReActAgent.from_tools(tools, llm=llm, memory=memory, verbose=True, context=context, tool_choice='auto',max_iterations=15)
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=15)
 
 #prompt_dict = agent.get_prompts()
 #for k, v in prompt_dict.items():
@@ -93,12 +98,13 @@ prompt = "Wer war Anna Gölding und welche andren personen oder organisationen s
 response = agent.query(prompt)
 #response = llm.complete(prompt)
 
-#memory.put(response)
+memory.save_context({"input": prompt}, {"output": str(response)})
 
 print(response)
 print("----------------------------------")
 
-prompt = "tell me more about the organzations?"
+chat_history = memory.load_memory_variables({})["chat_history"]
+prompt = f"tell me more about the organzations? History: {chat_history}"
 response = agent.query(prompt )
 
 print(response)
