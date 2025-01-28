@@ -25,7 +25,12 @@ hf_token=os.getenv("HF_TOKEN")
 
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
-llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480')
+# linux 6g
+#llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480', temperature=0)
+# win 4g
+#llm = Ollama(model="llama3.2:1b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
+# not tool support llm = Ollama(model="deepseek-r1:latest", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
+llm = Ollama(model="nemotron-mini:4b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
 
 
 #response = llm.complete("What is 20+(2*4)? Calculate step by step.")
