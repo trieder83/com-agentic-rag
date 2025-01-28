@@ -3,7 +3,7 @@ import os
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, PromptTemplate
 from llama_index.core.embeddings import resolve_embed_model
 from llama_index.core.tools import QueryEngineTool
 
@@ -16,7 +16,7 @@ memory = ConversationBufferMemory(memory_key="chat_history")
 
 
 # other file prompts.py
-from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE
+from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE, react_system_header_str
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -26,11 +26,11 @@ hf_token=os.getenv("HF_TOKEN")
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
 # linux 6g
-#llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480', temperature=0)
+llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480', temperature=0)
 # win 4g
 #llm = Ollama(model="llama3.2:1b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
 # not tool support llm = Ollama(model="deepseek-r1:latest", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
-llm = Ollama(model="nemotron-mini:4b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
+#llm = Ollama(model="nemotron-mini:4b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
 
 
 #response = llm.complete("What is 20+(2*4)? Calculate step by step.")
@@ -71,9 +71,10 @@ def find_person(name: str, **kwargs):
     """
     # Mock response; replace with real query logic
     person_data = {
-            "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland.","object_id":"1234","relations":{"knows other person":"ron paul","organzation":"pilz mafia"}},
+        "anna gölding": {"birthdate": "October 24, 1734", "known_for": "Last witch executed in Switzerland.","object_id":"1234","relations":{"knows other person":"ron paul","organzation":"pilz mafia"}},
         "john doe": {"birthdate": "Unknown", "known_for": "Placeholder name for anonymous individuals."},
         "ron paul": {"birthdate": "May 1, 1928", "known_for": "Talking a lot."},
+        "miranda meyers": {"birthdate": "Aug 11, 1998", "known_for": "Miranda verkauft gerne verdorbens Eis. Das Eis erhält sie illegal von Litauen, wo es mit Mäusemilch hergestellt wird."},
     }
     return person_data.get(name.lower(), "No information available for this person.")
 
@@ -120,7 +121,14 @@ tools = [
 ]
 
 
-agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=15)
+
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25)
+
+# update agent system prompt
+react_system_prompt = PromptTemplate(react_system_header_str)
+agent.update_prompts({"agent_worker:system_prompt": react_system_prompt})
+agent.reset()
+
 
 #prompt_dict = agent.get_prompts()
 #for k, v in prompt_dict.items():
@@ -141,6 +149,7 @@ print("----------------------------------")
 
 chat_history = memory.load_memory_variables({})["chat_history"]
 prompt = f"tell me more about the organzations? History: {chat_history}"
+memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
 print(response)
@@ -151,10 +160,27 @@ memory.save_context({"input": prompt}, {"output": str(response)})
 
 print("----------------------------------")
 chat_history = memory.load_memory_variables({})["chat_history"]
-prompt = f"give me the url to the person Anna Gölding in the format the fromat xx:/object:entity_type/id:object_id, the entity_type can be: PERSON, ORGANZATION"
+prompt = f"""provide the url to the person Anna Gölding in the format the fromat xx:/object:entity_type/id:object_id, the entity_type can be: PERSON, ORGANZATION.
+the output must be a bullet list with where each item has this attributes: object, object type, url.
+History: {chat_history}
+"""
+
+memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
 print(response)
+
+print("----------------------------------")
+chat_history = memory.load_memory_variables({})["chat_history"]
+prompt = f"""print the relation between persons and organzations as ascii art. the persons MUST be in the context.
+The object should include the type and the name of the object. For example Person: <name of the person>.
+Do not use any tools for this task.
+History: {chat_history}
+"""
+response = agent.query(prompt )
+
+print(response)
+
 
 
 
@@ -240,7 +266,7 @@ agent = ReActAgent.from_tools(
     #query_engine_tools,
     llm=llm,
     verbose=True,
-    max_iterations=5,
+    max_iterations=25,
 )
 #response = agent.chat("What is (121 + 2) * 5?")
 response = agent.chat("Do you know the person anna göldin? If yes what is her Birtdate? ")
