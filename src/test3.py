@@ -1,5 +1,7 @@
 from transformers import AutoTokenizer, BitsAndBytesConfig
 import os
+from dateutil import parser
+from datetime import datetime
 from functools import lru_cache
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
@@ -9,13 +11,13 @@ from llama_index.core.embeddings import resolve_embed_model
 from llama_index.core.tools import QueryEngineTool
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.core.memory import ChatMemoryBuffer, ChatSummaryMemoryBuffer
+import tiktoken
 
-
-#from llama_index.core.memory import ChatMemoryBuffer
-from langchain.chains.conversation.memory import ConversationBufferMemory
+#from langchain.chains.conversation.memory import ConversationBufferMemory
 
 # Initialize memory
-memory = ConversationBufferMemory(memory_key="chat_history")
+#memory = ConversationBufferMemory(memory_key="chat_history")
 
 
 # other file prompts.py
@@ -26,12 +28,13 @@ load_dotenv()
 
 hf_token=os.getenv("HF_TOKEN")
 OLLAMA_URL='http://charon:31480'
+LLM_MODEL='llama3.2:latest'
 EMBEDDING_MODEL='snowflake-arctic-embed2'
 
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
 # linux 6g
-llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url=OLLAMA_URL, temperature=0)
+llm = Ollama(model=LLM_MODEL, request_timeout=120.0, base_url=OLLAMA_URL, temperature=0)
 # win 4g
 #llm = Ollama(model="llama3.2:1b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
 # not tool support llm = Ollama(model="deepseek-r1:latest", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
@@ -94,7 +97,7 @@ find_person_tool = FunctionTool.from_defaults(
 )
 
 @lru_cache(maxsize=10)
-def find_organization(name: str):
+def find_organization(name: str, **kwargs):
     """
     provides information about known official and inofficial organzations.
 
@@ -114,26 +117,73 @@ find_orgnization_tool = FunctionTool.from_defaults(
     name="find_organization",
 )
 
+
+#def get_messages(name: str, min_daterange: datetime, max_daterange: datetime):
+def get_messages(name: str, min_daterange: str, max_daterange: str, **kwargs):
+    """
+    Retrieve information about communications between two or more people within a given date range.
+
+    # Example usage:
+        name = "c1"
+        min_daterange = ISO8601 date string
+        max_daterange = ISO8601 date string
+        messages = get_messages(name, min_daterange, max_daterange)
+
+    Args:
+        name (str): The name of the context always use c1.
+        min_daterange (datetime): The start of the date range.
+        max_daterange (datetime): The end of the date range.
+
+    Returns:
+        dict: A dictionary of messages for the given name within the date range.
+    """
+    # Mock response; replace with real query logic
+    min_daterange_ts = parser.parse(min_daterange)
+    max_daterange_ts = parser.parse(max_daterange)
+    org_data = {
+        "c1_1738446338": {"sender": "Ron Paul", "message": "Anna Gölding ist gestorben.", "timestamp": datetime(2025, 1, 1)},
+        "c1_1738446338": {"sender": "Pilz Mafia", "message": "Hat Sie mit Boris Weed gesprochen oder ihn erwähnt? Sie wollte von ihm ein Sack voll Vogelfutter kaufen.", "timestamp": datetime(2025, 1, 5)},
+    }
+
+    result = {}
+    for key, value in org_data.items():
+        if key.startswith(name.lower()): # and min_daterange_ts <= value["timestamp"] <= max_daterange_ts:
+            result[key] = value
+
+    if not result:
+        return "No information available for this timerange"
+
+    return result
+
+get_messages_tool = FunctionTool.from_defaults(
+    fn=get_messages,
+    name="get_messages",
+)
+
 ## TODO graph db
-
-
-## memory
-# Initialize the memory
-#memory = ChatMemoryBuffer.from_defaults(chat_history=[], llm=llm)
 
 # rag
 # data/additionalinfo.txt
 
-
 tools = [
     find_person_tool,
     find_orgnization_tool,
+    get_messages_tool,
     knowledge_tool,
 ]
 
+memory = ChatMemoryBuffer(token_limit=2000)
+
+#tokenizer_fn = tiktoken.encoding_for_model(model).encode
+long_memory = ChatSummaryMemoryBuffer.from_defaults(
+    #chat_history=[],
+    llm=llm,
+    token_limit=10,
+#    tokenizer_fn=tokenizer_fn,
+)
 
 
-agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25)
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25, memory=memory, chat_history=long_memory) #, chat_history=memory)
 
 # update agent system prompt
 react_system_prompt = PromptTemplate(react_system_header_str)
@@ -149,23 +199,37 @@ agent.reset()
 
 print("start prompt")
 #prompt = "Who is Anna Gölding and what other person may be related to her? to which organzations may she be related?"
-prompt = "Wer war Anna Gölding und welche andren personen oder organisationen stehen mit ihr in verbindung?"
+question_context = """context: c1, zeitbereich: 2025-02-01T00:00:00+00:00 to 2025-02-15T00:00:00+00:00 """
+prompt = f"""Wer war Anna Gölding und welche andren personen oder organisationen stehen mit ihr in verbindung?
+             Liste alle informationen und fakten die du findest in der antwort auf.
+            questions context: {question_context}
+            1. Analysiere die Person bekannt ist im find person tool.
+            2. Analysiere die Person verbindungen zu anderen Personen oder Organisationen hat
+            3. Prüfe ob Nachriten (messages) im context dieser Personen im gesuchten Zeitbereich statgefunden haben mit dem get_messages tool.
+            4. Nenne die Anzahl der conversationen
+            5. Nenne die Teilnehmer der conversationen
+            6. Fasse den Inhalt der Kommunikation zusammen
+            7. Prüfe ob Entitäten wie Personen, Organisationen oder Orte in der Nachrichten vorkommen, die bisher nicht bekannt sind.
+            8. Kontrolliere ob alle Punkte dieser liste erfüllt sind
+          """
 response = agent.query(prompt)
 #response = llm.complete(prompt)
 
-memory.save_context({"input": prompt}, {"output": str(response)})
+#memory.save_context({"input": prompt}, {"output": str(response)})
 
-print(response)
+print(f"AI: {response}")
+long_memory.put(response)
 print("----------------------------------")
 
 chat_history = [""]
-#chat_history = memory.load_memory_variables({})["chat_history"]
+#chat_history =
+#print (memory.load_memory_variables({})["chat_history"])
 #prompt = f"there might be a conection. tell me more facts about the organzations mentioned? History: {chat_history}"
-prompt = f"there might be a conection. tell me more facts about the organzations mentioned before?"
-memory.save_context({"input": prompt}, {"output": str(response)})
+prompt = f"there might be a conection. tell the name of the organization. check if more facts about the organzation is avaliable?"
+#memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
-print(response)
+print(f"AI: {response}")
 #while (prompt := input("Enter a prompt (q to quit): ")) != "q":
 #     result = agent.query(prompt)
 
@@ -181,154 +245,16 @@ History: {chat_history}
 #memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
-print(response)
+print(f"AI: {response}")
 
 print("----------------------------------")
-chat_history = memory.load_memory_variables({})["chat_history"]
+#chat_history = memory.load_memory_variables({})["chat_history"]
 prompt = f"""print the relation between persons and organzations as ascii art. the persons MUST be in mentioned in the prompt or response.
-The object should include the type and the name of the object. For example Person: <name of the person>.
 Do not use any tools for this task.
+The object should include the type and the name of the object. For example Person: <name of the person>.
 History: {chat_history}
 """
 response = agent.query(prompt )
 
-print(response)
+print(f"AI: {response}")
 
-
-
-
-exit()
-
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-
-#embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
-#embed_model = HuggingFaceEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2",device="cpu")
-
-from llama_index.core import Settings
-
-# bge embedding model
-#Settings.embed_model = embed_model
-
-# Llama-3-8B-Instruct model
-Settings.llm = llm
-
-#response = query_engine.query("What did paul graham do growing up?")
-#print(response)
-
-import json
-from typing import Sequence, List
-
-from llama_index.core.llms import ChatMessage
-from llama_index.core.tools import BaseTool, FunctionTool
-from llama_index.core.agent import ReActAgent
-
-import nest_asyncio
-
-nest_asyncio.apply()
-
-def multiply(a: int, b: int) -> int:
-    """Multiple two integers and returns the result integer"""
-    return a * b
-
-
-def add(a: int, b: int) -> int:
-    """Add two integers and returns the result integer"""
-    return a + b
-
-
-def subtract(a: int, b: int) -> int:
-    """Subtract two integers and returns the result integer"""
-    return a - b
-
-
-def divide(a: int, b: int) -> int:
-    """Divides two integers and returns the result integer"""
-    return a / b
-
-multiply_tool = FunctionTool.from_defaults(fn=multiply)
-add_tool = FunctionTool.from_defaults(fn=add)
-subtract_tool = FunctionTool.from_defaults(fn=subtract)
-divide_tool = FunctionTool.from_defaults(fn=divide)
-
-from llama_index.core.tools import QueryEngineTool, ToolMetadata
-from llama_index.core import Settings
-#from llama_index.core.indices.service_context import ServiceContext
-
-#query_engine_tools = [
-#    QueryEngineTool(
-#        query_engine=findPerson,
-#        #tools=findPerson,
-#        metadata=ToolMetadata(
-#            name="findPerson",
-#            description=(
-#                "Provides infromation about known persons."
-#                "Use the name of the person as input to the tool."
-#            ),
-#        ),
-#    ),
-#]
-
-# Step 3: Set up LLM
-#llm = llm(temperature=0)  # OpenAI model; replace with a local LLM if needed
-#llm_predictor = LLMPredictor(llm=llm)
-#service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
-
-
-agent = ReActAgent.from_tools(
-    [multiply_tool, add_tool, subtract_tool, divide_tool,findPerson],
-    #query_engine_tools,
-    llm=llm,
-    verbose=True,
-    max_iterations=25,
-)
-#response = agent.chat("What is (121 + 2) * 5?")
-response = agent.chat("Do you know the person anna göldin? If yes what is her Birtdate? ")
-print(str(response))
-
-"""
-lyft_docs = SimpleDirectoryReader(
-    input_files=["./lyft_2021.pdf"]
-).load_data()
-uber_docs = SimpleDirectoryReader(
-    input_files=["./uber_2021.pdf"]
-).load_data()
-
-
-lyft_index = VectorStoreIndex.from_documents(lyft_docs)
-uber_index = VectorStoreIndex.from_documents(uber_docs)
-
-lyft_engine = lyft_index.as_query_engine(similarity_top_k=3)
-uber_engine = uber_index.as_query_engine(similarity_top_k=3)
-
-query_engine_tools = [
-    QueryEngineTool(
-        query_engine=lyft_engine,
-        metadata=ToolMetadata(
-            name="lyft_10k",
-            description=(
-                "Provides information about Lyft financials for year 2021. "
-                "Use a detailed plain text question as input to the tool."
-            ),
-        ),
-    ),
-    QueryEngineTool(
-        query_engine=uber_engine,
-        metadata=ToolMetadata(
-            name="uber_10k",
-            description=(
-                "Provides information about Uber financials for year 2021. "
-                "Use a detailed plain text question as input to the tool."
-            ),
-        ),
-    ),
-]
-
-agent = ReActAgent.from_tools(
-    query_engine_tools,
-    llm=llm,
-    verbose=True,
-)
-
-response = agent.chat("What was Lyft's revenue in 2021?")
-print(str(response))
-"""
