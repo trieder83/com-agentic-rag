@@ -1,11 +1,14 @@
 from transformers import AutoTokenizer, BitsAndBytesConfig
 import os
+from functools import lru_cache
 from llama_index.core.agent import ReActAgent
 from llama_index.llms.openai import OpenAI
 from llama_index.core.tools import FunctionTool
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, PromptTemplate
 from llama_index.core.embeddings import resolve_embed_model
 from llama_index.core.tools import QueryEngineTool
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.embeddings.ollama import OllamaEmbedding
 
 
 #from llama_index.core.memory import ChatMemoryBuffer
@@ -22,11 +25,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 hf_token=os.getenv("HF_TOKEN")
+OLLAMA_URL='http://charon:31480'
+EMBEDDING_MODEL='snowflake-arctic-embed2'
 
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
 # linux 6g
-llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://localhost:31480', temperature=0)
+llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url=OLLAMA_URL, temperature=0)
 # win 4g
 #llm = Ollama(model="llama3.2:1b", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
 # not tool support llm = Ollama(model="deepseek-r1:latest", request_timeout=300.0, base_url='http://localhost:11434', temperature=0)
@@ -40,11 +45,13 @@ llm = Ollama(model="llama3.2:latest", request_timeout=120.0, base_url='http://lo
 print("read txt")
 #documents = SimpleDirectoryReader("data").load_data()
 documents = SimpleDirectoryReader(
-    input_files=["./data/testdata.txt","./data/additionalinfo.txt"]
+    input_files=["/data/testdata.txt","/data/additionalinfo.txt"]
 ).load_data()
 
 # bge-m3 embedding model
-Settings.embed_model = resolve_embed_model("local:BAAI/bge-small-en-v1.5")
+#Settings.embed_model = resolve_embed_model("local:BAAI/bge-small-en-v1.5")
+Settings.embed_model = OllamaEmbedding(model_name=EMBEDDING_MODEL, base_url=OLLAMA_URL,embed_batch_size=100)
+Settings.text_splitter = SentenceSplitter(chunk_size=512, chunk_overlap=30)
 # ollama
 Settings.llm = llm
 
@@ -57,11 +64,14 @@ query_engine = index.as_query_engine(similarity_top_k=3)
 knowledge_tool = QueryEngineTool.from_defaults(
     query_engine,
     name="knowledge_tool",
-    description="A RAG engine with some basic facts persons. Ask natural-language questions about persons and their properties and relations."
+    description="""A RAG engine with some basic facts persons. Ask natural-language questions about persons and their properties and relations.
+              if the knowledge_tool has no relatied information, ignore the answer.
+              """
 )
 
 
 # generate_kwargs parameters are taken from https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
+@lru_cache(maxsize=10)
 def find_person(name: str, **kwargs):
     """
     provides information about known persons. including ther detail information like birthdate
@@ -83,6 +93,7 @@ find_person_tool = FunctionTool.from_defaults(
     name="find_person",
 )
 
+@lru_cache(maxsize=10)
 def find_organization(name: str):
     """
     provides information about known official and inofficial organzations.
@@ -147,8 +158,10 @@ memory.save_context({"input": prompt}, {"output": str(response)})
 print(response)
 print("----------------------------------")
 
-chat_history = memory.load_memory_variables({})["chat_history"]
-prompt = f"tell me more about the organzations? History: {chat_history}"
+chat_history = [""]
+#chat_history = memory.load_memory_variables({})["chat_history"]
+#prompt = f"there might be a conection. tell me more facts about the organzations mentioned? History: {chat_history}"
+prompt = f"there might be a conection. tell me more facts about the organzations mentioned before?"
 memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
@@ -156,23 +169,23 @@ print(response)
 #while (prompt := input("Enter a prompt (q to quit): ")) != "q":
 #     result = agent.query(prompt)
 
-memory.save_context({"input": prompt}, {"output": str(response)})
+#memory.save_context({"input": prompt}, {"output": str(response)})
 
 print("----------------------------------")
-chat_history = memory.load_memory_variables({})["chat_history"]
+#chat_history = memory.load_memory_variables({})["chat_history"]
 prompt = f"""provide the url to the person Anna Gölding in the format the fromat xx:/object:entity_type/id:object_id, the entity_type can be: PERSON, ORGANZATION.
 the output must be a bullet list with where each item has this attributes: object, object type, url.
 History: {chat_history}
 """
 
-memory.save_context({"input": prompt}, {"output": str(response)})
+#memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 
 print(response)
 
 print("----------------------------------")
 chat_history = memory.load_memory_variables({})["chat_history"]
-prompt = f"""print the relation between persons and organzations as ascii art. the persons MUST be in the context.
+prompt = f"""print the relation between persons and organzations as ascii art. the persons MUST be in mentioned in the prompt or response.
 The object should include the type and the name of the object. For example Person: <name of the person>.
 Do not use any tools for this task.
 History: {chat_history}

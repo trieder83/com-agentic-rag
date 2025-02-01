@@ -45,9 +45,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN [ "python3", "-c", "import nltk; nltk.download('punkt', download_dir='/usr/local/nltk_data')" ]
 
 ENV HF_HOME="/cache"
-COPY agenticrag.py test.py .
+COPY src/ .
 
-CMD [ "python", "./test.py" ]
+CMD [ "python", "./test3.py" ]
 #CMD [ flask, --app, createEmbeddings2, "run"]
 #CMD [ flask, --app, agenticrag.py, "run"]
 #CMD [ ./"bootstrap.sh"]

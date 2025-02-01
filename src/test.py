@@ -124,11 +124,23 @@ def findPerson(name: str):
     }
     return person_data.get(name.lower(), "No information available for this person.")
 
+def findRelationRAG(subject: str):
+    """ provides relations in the format: subject - relation - object
+    """
+    graphRAG = {
+            "anna gölding": {"subject": "anna gölding", relation:"member_of", "object": "pilz mafia"}
+            "anna gölding": {"subject": "anna gölding", relation:"born_in", "object": "altdorf"}
+            "anna gölding": {"subject": "anna gölding", relation:"home_location", "object": "luzern"}
+            "anna gölding": {"subject": "anna gölding", relation:"owns", "object": "doge ram car"}
+            }
+    return person_data.get(name.lower(), "No information available.")
+
 multiply_tool = FunctionTool.from_defaults(fn=multiply)
 add_tool = FunctionTool.from_defaults(fn=add)
 subtract_tool = FunctionTool.from_defaults(fn=subtract)
 divide_tool = FunctionTool.from_defaults(fn=divide)
 findPerson_tool = FunctionTool.from_defaults(fn=findPerson)
+findRelationRAG = FunctionTool.from_defaults(fn=findRelationRAG)
 
 from llama_index.core.tools import QueryEngineTool, ToolMetadata
 from llama_index.core import Settings
@@ -155,9 +167,11 @@ from llama_index.core import Settings
 
 
 agent = ReActAgent.from_tools(
-    [multiply_tool, add_tool, subtract_tool, divide_tool,findPerson],
+    [multiply_tool, add_tool, subtract_tool, divide_tool,findPerson,findRelationRAG],
     #query_engine_tools,
     llm=llm,
+    max_function_calls=10,
+    allow_parallel_tool_calls=False,
     verbose=True,
     max_iterations=5,
 )

@@ -1,8 +1,10 @@
-context = """Purpose: The primary role of this agent is to assist users by finding information about entities like persons, organizations, phone numbers, email addresses, vehicles. It should
+context = """
+            # Purpose: The primary role of this agent is to assist users by finding information about entities like persons, organizations, phone numbers, email addresses, vehicles. It should
             be able to find persons based on their name and optinally other attributes like birthdate, remarks, connections to companies or organzations
             or other persons of interest. It shold answer question about the person person provided. If relations to other entities are know it shold analyzed and mention them in the anwser.
             Just use entity information avaliable from functions. Do not make up any entities.
             If known, annotate entities in the response with a url in the fromat  xx:/object:{entity_type}/id:{object_id}
+
             """
 
 code_parser_template = """Parse the response from a previous LLM into a description and a string of valid code,

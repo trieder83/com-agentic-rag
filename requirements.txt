@@ -1,9 +1,13 @@
 flask==2.3.2
+ollama==0.4.5
 llama-index
 llama-agents 
 llama-index-vector-stores-chroma
 llama-index-readers-file
+llama-index-llms-ollama
 llama-index-embeddings-huggingface
+llama-index-embeddings-ollama
+llama-index-utils-workflow
 chromadb
 huggingface_hub
 llama-index-llms-huggingface
@@ -18,3 +22,6 @@ python-dotenv
 torch 
 torchvision 
 torchaudio
+langchain
+langchain-ollama
+
