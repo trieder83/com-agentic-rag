@@ -12,6 +12,7 @@ from llama_index.core.tools import QueryEngineTool
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.memory import ChatMemoryBuffer, ChatSummaryMemoryBuffer
+from llama_index.extractors.entity import EntityExtractor
 import tiktoken
 
 #from langchain.chains.conversation.memory import ConversationBufferMemory
@@ -27,9 +28,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 hf_token=os.getenv("HF_TOKEN")
-OLLAMA_URL='http://charon:31480'
-LLM_MODEL='llama3.2:latest'
-EMBEDDING_MODEL='snowflake-arctic-embed2'
+OLLAMA_URL=os.getenv("OLLAMA_URL")
+LLM_MODEL=os.getenv("LLM_MODEL")
+EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL")
+#OLLAMA_URL='http://charon:31480'
+#LLM_MODEL='llama3.2:latest'
+#EMBEDDING_MODEL='snowflake-arctic-embed2'
 
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
@@ -174,16 +178,36 @@ tools = [
 
 memory = ChatMemoryBuffer(token_limit=2000)
 
-#tokenizer_fn = tiktoken.encoding_for_model(model).encode
-long_memory = ChatSummaryMemoryBuffer.from_defaults(
-    #chat_history=[],
-    llm=llm,
-    token_limit=10,
-#    tokenizer_fn=tokenizer_fn,
+
+# extract only entities
+
+entity_extractor = EntityExtractor(
+    prediction_threshold=0.5,
+    label_entities=False,  # include the entity label in the metadata (can be erroneous)
+    device="cpu",  # set to "cuda" if you have a GPU
+)
+# ✅ Define an Entity Extractor for Organizations
+org_extractor = EntityExtractor(
+    entity_types=["ORGANIZATION"]  # Extracts only organizations
 )
 
+class OrganizationMemory(ChatMemoryBuffer):
+    def chat(self, message):
+        # Extract entities
+        extracted_entities = org_extractor.extract(message)
 
-agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25, memory=memory, chat_history=long_memory) #, chat_history=memory)
+        # Filter for only organizations
+        organizations = [
+            entity["text"] for entity in extracted_entities if entity["type"] == "ORGANIZATION"
+        ]
+
+        if organizations:
+            filtered_message = "Organizations mentioned: " + ", ".join(organizations)
+            super().chat(filtered_message)
+
+org_memory = OrganizationMemory(token_limit=200)
+
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25, memory=memory, chat_history=org_memory) #, chat_history=memory)
 
 # update agent system prompt
 react_system_prompt = PromptTemplate(react_system_header_str)
@@ -218,14 +242,15 @@ response = agent.query(prompt)
 #memory.save_context({"input": prompt}, {"output": str(response)})
 
 print(f"AI: {response}")
-long_memory.put(response)
+org_memory.put(response)
 print("----------------------------------")
 
-chat_history = [""]
+#chat_history = [""]
+chat_history = org_memory.get()
 #chat_history =
 #print (memory.load_memory_variables({})["chat_history"])
 #prompt = f"there might be a conection. tell me more facts about the organzations mentioned? History: {chat_history}"
-prompt = f"there might be a conection. tell the name of the organization. check if more facts about the organzation is avaliable?"
+prompt = f"there might be a conection. tell the name of the organization. check if more facts about the organzation is avaliable? History: {chat_history}"
 #memory.save_context({"input": prompt}, {"output": str(response)})
 response = agent.query(prompt )
 

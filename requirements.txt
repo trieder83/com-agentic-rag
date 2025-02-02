@@ -8,6 +8,7 @@ llama-index-llms-ollama
 llama-index-embeddings-huggingface
 llama-index-embeddings-ollama
 llama-index-utils-workflow
+llama-index-extractors-entity
 chromadb
 huggingface_hub
 llama-index-llms-huggingface
