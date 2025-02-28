@@ -1,5 +1,5 @@
 # FROM python:3
-FROM python:3.8-slim
+FROM python:3.13-slim
 #FROM pytorch/pytorch
 #FROM nvidia/cuda:12.1.1-runtime-ubuntu20.04
 #FROM nvidia/cuda:12.6.2-base-ubuntu22.04
@@ -14,8 +14,8 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONIOENCODING=utf-8
 
-RUN apt update && \
-  apt install -y pip python3-setuptools python3-distutils-extra
+#RUN apt update && \
+#  apt install -y pip python3-setuptools python3-distutils-extra
 #  apt install -y g++
 
 #RUN apt-get update && \
