@@ -15,7 +15,8 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONIOENCODING=utf-8
 
 RUN apt update && \
-  apt install -y g++
+  apt install -y pip python3-setuptools python3-distutils-extra
+#  apt install -y g++
 
 #RUN apt-get update && \
 #    apt-get install -y python3-pip python3-dev && \

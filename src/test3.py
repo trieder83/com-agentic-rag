@@ -31,6 +31,7 @@ hf_token=os.getenv("HF_TOKEN")
 OLLAMA_URL=os.getenv("OLLAMA_URL")
 LLM_MODEL=os.getenv("LLM_MODEL")
 EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL")
+#TIKTOKEN_CACHE_DIR=
 #OLLAMA_URL='http://charon:31480'
 #LLM_MODEL='llama3.2:latest'
 #EMBEDDING_MODEL='snowflake-arctic-embed2'
