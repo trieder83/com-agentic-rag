@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, BitsAndBytesConfig
+#from transformers import AutEXTRACT_TEMPLATE_STooTokenizer, BitsAndBytesConfig
 import os
 from dateutil import parser
 from datetime import datetime
@@ -12,8 +12,12 @@ from llama_index.core.tools import QueryEngineTool
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.core.memory import ChatMemoryBuffer, ChatSummaryMemoryBuffer
-from llama_index.extractors.entity import EntityExtractor
+#from llama_index.extractors.entity import EntityExtractor
 import tiktoken
+
+from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIModel
 
 #from langchain.chains.conversation.memory import ConversationBufferMemory
 
@@ -22,19 +26,22 @@ import tiktoken
 
 
 # other file prompts.py
-from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE, react_system_header_str
+from prompts import context, code_parser_template, FORMAT_INSTRUCTIONS_TEMPLATE, react_system_header_str, EXTRACT_TEMPLATE_STR
 
 from dotenv import load_dotenv
 load_dotenv()
 
 hf_token=os.getenv("HF_TOKEN")
-OLLAMA_URL=os.getenv("OLLAMA_URL")
-LLM_MODEL=os.getenv("LLM_MODEL")
-EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL")
 #TIKTOKEN_CACHE_DIR=
 #OLLAMA_URL='http://charon:31480'
 #LLM_MODEL='llama3.2:latest'
 #EMBEDDING_MODEL='snowflake-arctic-embed2'
+OLLAMA_URL=os.getenv("OLLAMA_URL")
+LLM_MODEL=os.getenv("LLM_MODEL")
+EMBEDDING_MODEL=os.getenv("EMBEDDING_MODEL")
+DATAPATH=os.getenv("DATAPATH")
+
+print(OLLAMA_URL)
 
 from llama_index.llms.ollama import Ollama
 #llm = Ollama(model="mixtral:8x7b", request_timeout=120.0, base_url='http://localhost:31480')
@@ -53,7 +60,7 @@ llm = Ollama(model=LLM_MODEL, request_timeout=120.0, base_url=OLLAMA_URL, temper
 print("read txt")
 #documents = SimpleDirectoryReader("data").load_data()
 documents = SimpleDirectoryReader(
-    input_files=["/data/testdata.txt","/data/additionalinfo.txt"]
+    input_files=[f"{DATAPATH}/testdata.txt",f"{DATAPATH}/additionalinfo.txt"]
 ).load_data()
 
 # bge-m3 embedding model
@@ -63,8 +70,10 @@ Settings.text_splitter = SentenceSplitter(chunk_size=512, chunk_overlap=30)
 # ollama
 Settings.llm = llm
 
+
 index = VectorStoreIndex.from_documents(
-    documents,
+documents,
+#embed_model=ollama_embedding,
 )
 
 query_engine = index.as_query_engine(similarity_top_k=3)
@@ -182,33 +191,26 @@ memory = ChatMemoryBuffer(token_limit=2000)
 
 # extract only entities
 
-entity_extractor = EntityExtractor(
-    prediction_threshold=0.5,
-    label_entities=False,  # include the entity label in the metadata (can be erroneous)
-    device="cpu",  # set to "cuda" if you have a GPU
-)
-# ✅ Define an Entity Extractor for Organizations
-org_extractor = EntityExtractor(
-    entity_types=["ORGANIZATION"]  # Extracts only organizations
-)
+class Organization(BaseModel):
+    """Organization entity"""
+    name: str
 
-class OrganizationMemory(ChatMemoryBuffer):
-    def chat(self, message):
-        # Extract entities
-        extracted_entities = org_extractor.extract(message)
+ollama_model = OpenAIModel(model_name=LLM_MODEL, base_url=f"{OLLAMA_URL}/v1")
+#ollama_model = OpenAIModel(model_name='ollama:llama3.2', base_url=OLLAMA_URL)
+agent = Agent(ollama_model, result_type=Organization,system_prompt=EXTRACT_TEMPLATE_STR)
+#TODO
 
-        # Filter for only organizations
-        organizations = [
-            entity["text"] for entity in extracted_entities if entity["type"] == "ORGANIZATION"
-        ]
 
-        if organizations:
-            filtered_message = "Organizations mentioned: " + ", ".join(organizations)
-            super().chat(filtered_message)
 
-org_memory = OrganizationMemory(token_limit=200)
+prod_data = ["Die Pilz Mafia ist eine Organisation.", "Die Polnische Polizei überwacht die Pilz Mafia."]
 
-agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25, memory=memory, chat_history=org_memory) #, chat_history=memory)
+org_result = agent.run_sync(f'What organizations are mentioned {prod_data}')
+print(org_result.data)
+print(org_result.usage())
+#memory.save(org_result.data)
+
+# -----------
+agent = ReActAgent.from_tools(tools, llm=llm, verbose=True, context=context, tool_choice='auto',max_iterations=25, memory=memory) #, chat_history=memory)
 
 # update agent system prompt
 react_system_prompt = PromptTemplate(react_system_header_str)
@@ -243,11 +245,11 @@ response = agent.query(prompt)
 #memory.save_context({"input": prompt}, {"output": str(response)})
 
 print(f"AI: {response}")
-org_memory.put(response)
+#org_memory.put(response)
 print("----------------------------------")
 
 #chat_history = [""]
-chat_history = org_memory.get()
+#chat_history = org_memory.get()
 #chat_history =
 #print (memory.load_memory_variables({})["chat_history"])
 #prompt = f"there might be a conection. tell me more facts about the organzations mentioned? History: {chat_history}"

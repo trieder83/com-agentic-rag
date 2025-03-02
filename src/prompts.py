@@ -24,6 +24,14 @@ Final Answer: the final answer to the original input question
 Please respect the order of the steps Thought/Action/Action Input/Observation
 """
 
+EXTRACT_TEMPLATE_STR = """\
+Here is the content of the section:
+----------------
+{context_str}
+----------------
+Given the contextual information, extract out a {class_name} object.\
+"""
+
 react_system_header_str = """You are designed to help with a variety of tasks, from answering questions \
     to providing summaries to other types of analyses.
 

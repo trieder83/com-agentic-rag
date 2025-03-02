@@ -32,5 +32,5 @@ echo $IMAGE_PREFIX
 #echo $EXEC run --rm  -v $PWD/data:/data -v $PWD/src:/app -v $PWD/tiktoken:/tiktoken --env "TIKTOKEN_CACHE_DIR=/tiktoken" --network="host" localhost/trieder83/com-agentic-rag:0.1
 #$EXEC run --rm -v $PWD/data:/data -v $PWD/src:/app -v $PWD/tiktoken:/tiktoken --network="host" localhost/trieder83/com-agentic-rag:0.1
 
-$EXEC run --rm -v $DATA:/data -v $APP:/app -v $TICKTOKEN:/tiktoken --env-file=.env --env "TIKTOKEN_CACHE_DIR=/tiktoken" --network="host" ${IMAGE_PREFIX}trieder83/com-agentic-rag:0.1
+$EXEC run --rm -v $DATA:/data -v $APP:/app -v $TICKTOKEN:/tiktoken --env-file=.env --env "TIKTOKEN_CACHE_DIR=/tiktoken" --network="host" ${IMAGE_PREFIX}trieder83/com-agentic-rag:0.2
 
