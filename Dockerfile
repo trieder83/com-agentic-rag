@@ -76,4 +76,4 @@ COPY notebooks/ /app/notebooks/
 #CMD [ ./"bootstrap.sh"]
 EXPOSE 8888
 #HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-CMD [ "jupyter","notebook","--ip=0.0.0.0", "--no-browser", "--allow-root","--NotebookApp.default_url=/app/notebooks/default.ipynb"]
+CMD [ "jupyter","notebook","--ip=0.0.0.0", "--no-browser", "--allow-root", --notebook-dir=/app,"--NotebookApp.default_url=/app/notebooks/default.ipynb"]

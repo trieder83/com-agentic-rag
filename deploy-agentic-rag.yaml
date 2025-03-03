@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: com-agentic-rag-data
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: com-agentic-demo
+  namespace: default
+  labels:
+    app: com-agentic-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: com-agentic-demo
+  template:
+    metadata:
+      labels:
+       app: com-agentic-demo
+    spec:
+      initContainers:
+      - name: init-data
+        image: "busybox"
+        volumeMounts:
+        - name: com-agentic-rag-data
+          mountPath: /data
+        command: ['sh','-x','-c',"cd /data/ && if [ -f init.lock ]; then exit 0; fi","sleep 300"," wget http://192.168.0.3:80/data/demodata.tar.gz -o demodata.tar.gz  && tar xfvz demodata.tar.gz && touch init.lock"]
+        #command: ['sleep','infinity']
+        #command: ['sh','-c','ls /data/']
+      containers:
+        - name: com-agentic-demo
+          image: "trieder83/com-agentic-rag:0.2"
+#          resources:
+#            limits:
+#              nvidia.com/gpu: "1"
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OLLAMA_URL
+              value: http://ollama.aihub.svc.cluster.local:11434
+            - name: LLM_MODEL
+              value: llama3.2:3b
+            - name: EMBEDDING_MODEL
+              value: nomic-embed-text:latest
+            - name: DATAPATH
+              value: /data
+          volumeMounts:
+          - name: com-agentic-rag-data
+            mountPath: /data
+      volumes:
+      - name: com-agentic-rag-data
+        persistentVolumeClaim:
+          claimName: com-agentic-rag-data
+          #command:
+          #  - /bin/bash
+          #  - "-c"
+          #  - "/scripts/change-solr-pw.sh && /scripts/init-configset.sh && /scripts/createuser.sh && /scripts/createcollection.sh"
+#      restartPolicy: Never
+#  backoffLimit: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: com-agent-demo
+spec:
+  type: NodePort
+  selector:
+    app: com-agent-demo
+  ports:
+    - protocol: TCP
+      port: 8888
+      targetPort: 8888
+      nodePort: 30100
+
