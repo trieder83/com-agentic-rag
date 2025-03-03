@@ -13,4 +13,3 @@ python-dotenv
 langchain
 langchain-ollama
 pydantic_ai
-functools
