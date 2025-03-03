@@ -53,6 +53,7 @@ ENV PORT 8888
 ENV HOST 0.0.0.0
 ENV JUPYTER_ALLOW_INSECURE_WRITES=1
 ENV HF_HOME="/cache"
+ENV JUPYTER_DATA_DIR=/app/.local
 
 #RUN conda install pytorch torchvision cudatoolkit=10.0 -c pytorch && \
 #RUN pip install torch --index-url https://download.pytorch.org/whl/cpu && \
@@ -76,4 +77,4 @@ COPY notebooks/ /app/notebooks/
 #CMD [ ./"bootstrap.sh"]
 EXPOSE 8888
 #HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-CMD [ "jupyter","notebook","--ip=0.0.0.0", "--no-browser", "--allow-root", --notebook-dir=/app,"--NotebookApp.default_url=/app/notebooks/default.ipynb"]
+CMD [ "jupyter", "notebook","--ip=0.0.0.0", "--no-browser", "--allow-root", "--NotebookApp.default_url=/app/notebooks/default.ipynb"]
