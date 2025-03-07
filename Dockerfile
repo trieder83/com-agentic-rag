@@ -34,7 +34,8 @@ FROM python:3.13-slim as runtime
 #    rm -rf /var/lib/apt/lists/* && \
 RUN mkdir /app && \
     mkdir /app/.local && \
-    chown 1001:1001 /app /app/.local
+    mkdir /app/.ipython && \
+    chown -R 1001:1001 /app /app/.local  /app/.ipython
 
 # copy from build image
 COPY --chown=1001:1002 --from=build /opt/venv /opt/venv
