@@ -16,7 +16,8 @@ RUN apt update && \
     apt install --no-install-recommends -y build-essential
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt 
+RUN pip install --no-cache-dir -r requirements.txt  \
+    && "${VIRTUAL_ENV}/bin/python3" -m nltk.downloader -d /usr/share/nltk_data punkt_tab
 
 # Set environment variables.
 ENV PYTHONDONTWRITEBYTECODE 1
@@ -49,6 +50,19 @@ USER 1001:1001
 
 # Path - this activates the venv
 ENV PATH="/opt/venv/bin:$PATH"
+
+# ntlk punktlib (after venv)
+#ADD nltk_cache.tar /opt/venv/lib/python3.13/site-packages/llama_index/core/_static/nltk_cache
+#RUN [ "python3", "-c", "import nltk; nltk.download('punkt', download_dir='/usr/local/nltk_data')" ] 
+#ADD nltk_cache /usr/local/nltk_data
+#RUN pip install nltk && \
+#    mkdir ~/nltk_data && \
+#    mkdir ~/nltk_data/chunkers && \
+#    mkdir ~/nltk_data/corpora && \
+#    mkdir ~/nltk_data/taggers && \
+#    mkdir ~/nltk_data/tokenizers && \
+#    python -c "import nltk; nltk.download(['punkt', 'averaged_perceptron_tagger', 'maxent_ne_chunker', 'words'])"
+
 
 ENV PORT 8888
 ENV HOST 0.0.0.0
