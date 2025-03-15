@@ -10,6 +10,18 @@ spec:
     requests:
       storage: 1Gi
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: com-agentic-rag-notebooks
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50M
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +51,7 @@ spec:
       containers:
         - name: com-agentic-demo
           image: "trieder83/com-agentic-rag:0.2"
+          imagePullPolicy: Always
           #command: ['sleep','infinity']
 #          resources:
 #            limits:
@@ -49,26 +62,29 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: OLLAMA_URL
-              value: http://ollama.aihub.svc.cluster.local:11434
+              value: http://ollama-service-internal.default.svc.cluster.local:11433
             - name: LLM_MODEL
               value: llama3.2:3b
             - name: EMBEDDING_MODEL
-              value: nomic-embed-text:latest
+              value: bge-m3:567m
             - name: DATAPATH
-              value: /data
+              value: /app/data
             - name: JUPYTER_DATA_DIR
               value: /app/.local
           volumeMounts:
           - name: com-agentic-rag-data
-            mountPath: /data
+            mountPath: /app/data
+          - name: com-agentic-rag-notebooks
+            mountPath: /app/notebooks
       volumes:
       - name: com-agentic-rag-data
         persistentVolumeClaim:
           claimName: com-agentic-rag-data
-          #command:
-          #  - /bin/bash
-          #  - "-c"
-          #  - "/scripts/change-solr-pw.sh && /scripts/init-configset.sh && /scripts/createuser.sh && /scripts/createcollection.sh"
+      - name: com-agentic-rag-notebooks
+        persistentVolumeClaim:
+          claimName: com-agentic-rag-notebooks
+#      securityContext:
+#        fsGroup: 1001
 #      restartPolicy: Never
 #  backoffLimit: 1
 ---
