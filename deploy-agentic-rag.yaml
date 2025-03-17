@@ -65,6 +65,8 @@ spec:
               value: http://ollama-service-internal.default.svc.cluster.local:11433
             - name: LLM_MODEL
               value: llama3.2:3b
+            - name: LLM_MODEL_VISUAL
+              value: gemma3:1b
             - name: EMBEDDING_MODEL
               value: bge-m3:567m
             - name: DATAPATH

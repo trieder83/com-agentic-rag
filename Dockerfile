@@ -52,7 +52,7 @@ USER 1001:1001
 ENV PATH="/opt/venv/bin:$PATH"
 
 # ntlk punktlib (after venv)
-#ADD nltk_cache.tar /opt/venv/lib/python3.13/site-packages/llama_index/core/_static/nltk_cache
+ADD nltk_cache.tar /opt/venv/lib/python3.13/site-packages/llama_index/core/_static/nltk_cache
 #RUN [ "python3", "-c", "import nltk; nltk.download('punkt', download_dir='/usr/local/nltk_data')" ] 
 #ADD nltk_cache /usr/local/nltk_data
 #RUN pip install nltk && \
