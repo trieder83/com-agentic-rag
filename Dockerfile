@@ -1,5 +1,5 @@
 # FROM python:3
-FROM python:3.13-slim as build
+FROM python:3.12 as build
 #FROM python:3.11
 #FROM pytorch/pytorch
 #FROM nvidia/cuda:12.1.1-runtime-ubuntu20.04
@@ -23,13 +23,14 @@ RUN pip install --no-cache-dir -r requirements.txt  \
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONIOENCODING=utf-8
+#ENV CXXFLAGS="-std=c++17" 
 
 #    apt install -y python3-numpy
 #  apt install -y g++
 #    apt install -y build-essentials
 #  apt install -y pip python3-setuptools python3-distutils-extra
 
-FROM python:3.13-slim as runtime
+FROM python:3.12-slim as runtime
 #RUN apt-get update && \
 #    apt-get install -y python3-pip python3-dev && \
 #    rm -rf /var/lib/apt/lists/* && \
